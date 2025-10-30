@@ -1,0 +1,2105 @@
+﻿
+===== pubspec.yaml =====
+
+name: trope_app_proto1
+description: "A new Flutter project."
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`. This is preferred for private packages.
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+# The following defines the version and build number for your application.
+# A version number is three numbers separated by dots, like 1.2.43
+# followed by an optional build number separated by a +.
+# Both the version and the builder number may be overridden in flutter
+# build by specifying --build-name and --build-number, respectively.
+# In Android, build-name is used as versionName while build-number used as versionCode.
+# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
+# In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
+# Read more about iOS versioning at
+# https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
+# In Windows, build-name is used as the major, minor, and patch parts
+# of the product and file versions while build-number is used as the build suffix.
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.8.1
+
+# Dependencies specify other packages that your package needs in order to work.
+# To automatically upgrade your package dependencies to the latest versions
+# consider running `flutter pub upgrade --major-versions`. Alternatively,
+# dependencies can be manually updated by changing the version numbers below to
+# the latest version available on pub.dev. To see which dependencies have newer
+# versions available, run `flutter pub outdated`.
+dependencies:
+  flutter:
+    sdk: flutter
+  shared_preferences: ^2.3.2
+
+  # The following adds the Cupertino Icons font to your application.
+  # Use with the CupertinoIcons class for iOS style icons.
+  cupertino_icons: ^1.0.8
+
+  google_fonts: ^6.3.1  
+
+  # The "flutter_lints" package below contains a set of recommended lints to
+  # encourage good coding practices. The lint set provided by the package is
+  # activated in the `analysis_options.yaml` file located at the root of your
+  # package. See that file for information about deactivating specific lint
+  # rules and activating additional ones.
+  flutter_lints: ^5.0.0
+  flutter_test:
+    sdk: flutter
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter packages.
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/data/final_books.json
+    - assets/data/tropes_index.json
+    - assets/covers/
+
+  # To add assets to your application, add an assets section, like this:
+  # assets:
+  #   - images/a_dot_burr.jpeg
+  #   - images/a_dot_ham.jpeg
+
+  # An image asset can refer to one or more resolution-specific "variants", see
+  # https://flutter.dev/to/resolution-aware-images
+
+  # For details regarding adding assets from package dependencies, see
+  # https://flutter.dev/to/asset-from-package
+
+  # To add custom fonts to your application, add a fonts section here,
+  # in this "flutter" section. Each entry in this list should have a
+  # "family" key with the font family name, and a "fonts" key with a
+  # list giving the asset and other descriptors for the font. For
+  # example:
+  # fonts:
+  #   - family: Schyler
+  #     fonts:
+  #       - asset: fonts/Schyler-Regular.ttf
+  #       - asset: fonts/Schyler-Italic.ttf
+  #         style: italic
+  #   - family: Trajan Pro
+  #     fonts:
+  #       - asset: fonts/TrajanPro.ttf
+  #       - asset: fonts/TrajanPro_Bold.ttf
+  #         weight: 700
+  #
+  # For details regarding fonts from package dependencies,
+  # see https://flutter.dev/to/font-from-package
+
+===== lib/main.dart =====
+
+import 'package:flutter/material.dart';
+import 'package:trope_app_proto1/features/search/trope_search_screen.dart';
+import 'package:trope_app_proto1/screens/books_list_screen.dart';
+import 'package:trope_app_proto1/screens/books_results_screen.dart';
+import 'package:trope_app_proto1/features/search/trope_picker_screen.dart';
+import 'package:trope_app_proto1/features/search/trope_results_screen.dart';
+import 'screens/welcome_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/signup_screen.dart';
+import 'navigation/app_shell.dart';
+import 'screens/book_detail_screen.dart';
+import 'theme/app_theme.dart';
+
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const BookApp());
+}
+
+class BookApp extends StatelessWidget {
+  const BookApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Trope App',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light,            // <-- use cute theme
+      initialRoute: WelcomeScreen.route,
+      routes: {
+        WelcomeScreen.route: (_) => const WelcomeScreen(),
+        LoginScreen.route: (_) => const LoginScreen(),
+        SignupScreen.route: (_) => const SignupScreen(),
+        AppShell.route: (_) => const AppShell(),
+        BookDetailScreen.route: (_) => const BookDetailScreen(),
+        BooksListScreen.route: (_) => const BooksListScreen(),
+        BooksResultsScreen.route: (_) => const BooksResultsScreen(),
+        '/trope-search': (_) => const TropeSearchScreen(),
+        TropePickerScreen.route: (_) => const TropePickerScreen(),
+        TropeResultsScreen.route: (_) => const TropeResultsScreen(),
+      },
+      onUnknownRoute: (_) =>
+          MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+    );
+  }
+}
+
+===== lib/navigation/app_shell.dart =====
+
+// lib/navigation/app_shell.dart
+import 'package:flutter/material.dart';
+
+import '../screens/home_screen.dart';
+import '../features/search/trope_picker_screen.dart';
+import '../screens/library_screen.dart';
+import '../screens/profile_screen.dart';
+import '../screens/book_detail_screen.dart';
+
+// ignore: library_private_types_in_public_api
+final GlobalKey<_AppShellState> appShellKey = GlobalKey<_AppShellState>();
+
+class AppShell extends StatefulWidget {
+  static const route = '/home';
+  const AppShell({super.key});
+
+  static void setTab(int index) => appShellKey.currentState?._setIndex(index);
+
+  @override
+  State<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends State<AppShell> {
+  int _index = 0;
+
+  final _navKeys = <GlobalKey<NavigatorState>>[
+    GlobalKey<NavigatorState>(), // Home
+    GlobalKey<NavigatorState>(), // Tropes (picker)
+    GlobalKey<NavigatorState>(), // Library
+    GlobalKey<NavigatorState>(), // Profile
+  ];
+
+  void _setIndex(int i) {
+    if (_index == i) {
+      _navKeys[i].currentState?.popUntil((r) => r.isFirst);
+    }
+    setState(() => _index = i);
+  }
+
+  Map<String, WidgetBuilder> _stackRoutes(Widget root) => {
+  '/': (_) => root,
+  BookDetailScreen.route: (_) => const BookDetailScreen(),
+  TropePickerScreen.route: (_) => const TropePickerScreen(), // <-- add this
+};
+
+  Widget _buildStack(int i, Widget root) {
+    return Navigator(
+      key: _navKeys[i],
+      onGenerateRoute: (settings) {
+        final routes = _stackRoutes(root);
+        final builder = routes[settings.name ?? '/'] ?? routes['/']!;
+        return MaterialPageRoute(builder: builder, settings: settings);
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Trope App')),
+      body: IndexedStack(
+        index: _index,
+        children: [
+          _buildStack(0, const HomeScreen()),
+          _buildStack(1, const TropePickerScreen()), // â¬…ï¸ use the picker here
+          _buildStack(2, const LibraryScreen()),
+          _buildStack(3, const ProfileScreen()),
+        ],
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _index,
+        onDestinationSelected: _setIndex,
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
+          NavigationDestination(icon: Icon(Icons.favorite_outline), label: 'Tropes'),
+          NavigationDestination(icon: Icon(Icons.library_books_outlined), label: 'Library'),
+          NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profile'),
+        ],
+      ),
+    );
+  }
+}
+
+===== lib/features/search/trope_picker_screen.dart =====
+
+// lib/features/search/trope_picker_screen.dart
+import 'package:flutter/material.dart';
+import '../../data/book_repository.dart';
+
+class TropePickerScreen extends StatefulWidget {
+  static const route = '/trope-picker';
+  const TropePickerScreen({super.key});
+
+  @override
+  State<TropePickerScreen> createState() => _TropePickerScreenState();
+}
+
+class _TropePickerScreenState extends State<TropePickerScreen> {
+  final List<String> _selected = [];
+  List<String> _all = [];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
+  }
+
+  Future<void> _bootstrap() async {
+    final repo = BookRepository.instance;
+    await repo.load();
+    _all = repo.allTropes();
+
+    // Seed from arguments (optional)
+    final args = ModalRoute.of(context)?.settings.arguments;
+    final seeded = (args is Map && args['selected'] is List)
+        ? (args['selected'] as List).map((e) => e.toString()).toList()
+        : const <String>[];
+
+    // Normalize seeds to title-case canon
+    final canonMap = {
+      for (final t in _all) t.toLowerCase(): t,
+    };
+    for (final s in seeded) {
+      final canon = canonMap[s.toLowerCase()];
+      if (canon != null && !_selected.contains(canon)) {
+        _selected.add(canon);
+      }
+    }
+
+    if (mounted) setState(() {});
+  }
+
+  void _toggle(String t) {
+    setState(() {
+      if (_selected.contains(t)) {
+        _selected.remove(t);
+      } else if (_selected.length < 5) {
+        _selected.add(t);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Pick Tropes'),
+        actions: [
+          if (_selected.isNotEmpty)
+            TextButton(
+              onPressed: () => setState(() => _selected.clear()),
+              style: TextButton.styleFrom(
+                foregroundColor: theme.colorScheme.onPrimary,
+              ),
+              child: const Text('Clear'),
+            ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _all.map((t) {
+            final selected = _selected.contains(t);
+            return FilterChip(
+              label: Text(t),
+              selected: selected,
+              onSelected: (_) => _toggle(t),
+              selectedColor: theme.colorScheme.primary,
+              checkmarkColor: Colors.white,
+            );
+          }).toList(),
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: FilledButton.icon(
+          onPressed: () => Navigator.pop(context, List<String>.from(_selected)),
+          icon: const Icon(Icons.check),
+          label: const Text('Apply'),
+        ),
+      ),
+    );
+  }
+}
+
+===== lib/features/search/trope_search_screen.dart =====
+
+// lib/features/search/trope_search_screen.dart
+import 'dart:io';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
+
+import '../../data/book.dart';
+import '../../data/book_repository.dart';
+import '../../data/user_lists.dart';
+import '../../screens/book_detail_screen.dart';
+
+/// Quick-actions returned from the bottom sheet.
+enum _QuickAction { toTbr, toRead, toDnf, remove }
+
+class TropeSearchScreen extends StatefulWidget {
+  static const route = '/trope-search';
+  const TropeSearchScreen({super.key});
+
+  @override
+  State<TropeSearchScreen> createState() => _TropeSearchScreenState();
+}
+
+class _TropeSearchScreenState extends State<TropeSearchScreen> {
+  bool _loading = true;
+
+  // All tropes (title-cased, sorted)
+  List<String> _allTropes = [];
+
+  // Selection + computed state
+  final List<String> _selected = [];
+  Set<String> _viableNext = {};
+  List<Book> _matchingBooks = [];
+
+  // Per-row shelf cache (for trailing badge)
+  final Map<String, Shelf?> _shelfCache = {};
+
+  // Optional title/author query
+  String _query = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    try {
+      final repo = BookRepository.instance;
+      await repo.load(); // reads assets/data/final_books.json
+      _allTropes = repo.allTropes();
+      _recompute();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load books: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _refreshShelvesFor(Iterable<Book> books) async {
+    for (final b in books) {
+      _shelfCache[b.id] = await UserLists.shelfFor(b.id);
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _recompute() {
+    final repo = BookRepository.instance;
+
+    // Books that match current trope selection (AND)
+    final ids = repo.bookIdsForSelectedTropes(_selected);
+    var books = repo.booksByIds(ids);
+
+    // Title/author text filter
+    if (_query.trim().isNotEmpty) {
+      final q = _query.toLowerCase().trim();
+      books = books
+          .where((b) =>
+              b.title.toLowerCase().contains(q) ||
+              b.author.toLowerCase().contains(q))
+          .toList();
+    }
+
+    // stable sort
+    books.sort(
+      (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+    );
+
+    // viable next tropes for gating chips
+    _viableNext = repo.viableNextTropes(_selected);
+
+    _matchingBooks = books;
+
+    // refresh shelf badges (async fire-and-forget)
+    _refreshShelvesFor(_matchingBooks);
+  }
+
+  void _toggleTrope(String trope) {
+    setState(() {
+      if (_selected.contains(trope)) {
+        _selected.remove(trope);
+      } else {
+        if (_selected.length >= 5) return; // hard cap
+        _selected.add(trope);
+      }
+      _recompute();
+    });
+  }
+
+  void _clearAll() {
+    setState(() {
+      _selected.clear();
+      _query = "";
+      _recompute();
+    });
+  }
+
+  bool _isDisabledChip(String trope) {
+    if (_selected.contains(trope)) return false; // can always deselect
+    if (_selected.length >= 5) return true;      // cap reached
+    return !_viableNext.contains(trope.toLowerCase());
+  }
+
+  // --- UI bits ---------------------------------------------------------------
+
+  Widget _coverThumb(Book b) {
+    final url = b.coverUrl ?? "";
+    const w = 48.0, h = 72.0;
+
+    Widget fallback() => const SizedBox(
+          width: w,
+          height: h,
+          child: DecoratedBox(
+            decoration: BoxDecoration(color: Colors.black12),
+          ),
+        );
+
+    if (url.isEmpty) return fallback();
+
+    if (url.startsWith('assets/')) {
+      return Image.asset(
+        url,
+        width: w,
+        height: h,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback(),
+      );
+    }
+
+    if (url.startsWith("http")) {
+      return Image.network(
+        url,
+        width: w,
+        height: h,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback(),
+      );
+    }
+
+    if (kIsWeb) return fallback(); // no File IO on web
+
+    try {
+      return Image.file(
+        File(url),
+        width: w,
+        height: h,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback(),
+      );
+    } catch (_) {
+      return fallback();
+    }
+  }
+
+  Widget _buildChip(String trope) {
+    final selected = _selected.contains(trope);
+    final disabled = _isDisabledChip(trope);
+
+    final theme = Theme.of(context);
+    final bg = disabled
+        ? theme.colorScheme.surfaceVariant
+        : (selected ? theme.colorScheme.primary : theme.colorScheme.surfaceVariant);
+    final fg = disabled
+        ? theme.colorScheme.outline
+        : (selected ? theme.colorScheme.onPrimary : theme.colorScheme.onSurfaceVariant);
+    final border = disabled
+        ? theme.colorScheme.outlineVariant
+        : theme.colorScheme.outlineVariant;
+
+    return FilterChip(
+      label: Text(
+        trope,
+        style: TextStyle(color: fg, fontWeight: selected ? FontWeight.w600 : null),
+      ),
+      selected: selected,
+      onSelected: disabled ? null : (_) => _toggleTrope(trope),
+      backgroundColor: theme.colorScheme.surface,
+      selectedColor: bg,
+      checkmarkColor: fg,
+      side: BorderSide(color: border),
+      shape: const StadiumBorder(),
+    );
+  }
+
+  Widget _shelfBadge(Shelf? shelf) {
+    if (shelf == null) return const SizedBox.shrink();
+    final (label, color) = switch (shelf) {
+      Shelf.read => ('READ', Colors.green),
+      Shelf.tbr  => ('TBR', Colors.blue),
+      Shelf.dnf  => ('DNF', Colors.red),
+    };
+    return Chip(
+      label: Text(label),
+      labelStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+      backgroundColor: color.withOpacity(0.85),
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
+    );
+  }
+
+  void _toast(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _quickAddSheet(Book b) async {
+    final current = _shelfCache[b.id]; // may be null
+
+    final chosen = await showModalBottomSheet<_QuickAction>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        Widget tile({
+          required IconData icon,
+          required String label,
+          required _QuickAction action,
+          bool selected = false,
+        }) {
+          return ListTile(
+            leading: Icon(
+              icon,
+              color: selected ? Theme.of(ctx).colorScheme.primary : null,
+            ),
+            title: Row(
+              children: [
+                Text(label),
+                if (selected) ...[
+                  const SizedBox(width: 8),
+                  const Icon(Icons.check_circle, size: 18),
+                ]
+              ],
+            ),
+            onTap: () => Navigator.pop(ctx, action),
+          );
+        }
+
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              tile(
+                icon: Icons.bookmark_add_outlined,
+                label: 'Add to TBR',
+                action: _QuickAction.toTbr,
+                selected: current == Shelf.tbr,
+              ),
+              tile(
+                icon: Icons.check_circle_outline,
+                label: 'Mark as Read',
+                action: _QuickAction.toRead,
+                selected: current == Shelf.read,
+              ),
+              tile(
+                icon: Icons.not_interested_outlined,
+                label: 'Mark as DNF',
+                action: _QuickAction.toDnf,
+                selected: current == Shelf.dnf,
+              ),
+              const Divider(height: 0),
+              tile(
+                icon: Icons.remove_circle_outline,
+                label: 'Remove from shelves',
+                action: _QuickAction.remove,
+                selected: current == null,
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (chosen == null) return;
+
+    switch (chosen) {
+      case _QuickAction.toTbr:
+        await UserLists.addTo(Shelf.tbr, b.id);
+        _toast('Added to TBR');
+        break;
+      case _QuickAction.toRead:
+        await UserLists.addTo(Shelf.read, b.id);
+        _toast('Marked as Read');
+        break;
+      case _QuickAction.toDnf:
+        await UserLists.addTo(Shelf.dnf, b.id);
+        _toast('Marked as DNF');
+        break;
+      case _QuickAction.remove:
+        await UserLists.removeEverywhere(b.id);
+        _toast('Removed from all shelves');
+        break;
+    }
+
+    // refresh just this rowâ€™s badge
+    _shelfCache[b.id] = await UserLists.shelfFor(b.id);
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    if (_loading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Search by Tropes')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final resultCount = _matchingBooks.length;
+    final maxReached = _selected.length >= 5;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Search by Tropes'),
+        actions: [
+          if (_selected.isNotEmpty || _query.isNotEmpty)
+            TextButton.icon(
+              onPressed: _clearAll,
+              icon: const Icon(Icons.clear_all),
+              label: const Text('Clear'),
+              style: TextButton.styleFrom(
+                foregroundColor: theme.colorScheme.onPrimary,
+              ),
+            ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Optional text filter
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: TextField(
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                hintText: 'Filter by title or author (optional)',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (v) => setState(() {
+                _query = v;
+                _recompute();
+              }),
+            ),
+          ),
+
+          // Selection header
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              children: [
+                Text(
+                  _selected.isEmpty
+                      ? 'Select up to 5 tropes (tap to toggle, long-press a book to quick-add)'
+                      : 'Selected (${_selected.length}/5)',
+                  style: theme.textTheme.bodyMedium!
+                      .copyWith(fontWeight: FontWeight.w600),
+                ),
+                const Spacer(),
+                if (maxReached)
+                  Text(
+                    'Max selected',
+                    style: theme.textTheme.bodySmall!
+                        .copyWith(color: theme.colorScheme.secondary),
+                  ),
+              ],
+            ),
+          ),
+
+          // Trope chips (horizontal; scrollable)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _allTropes.map(_buildChip).toList(),
+              ),
+            ),
+          ),
+
+          const Divider(height: 16),
+
+          // Results header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              children: [
+                Text(
+                  '$resultCount result${resultCount == 1 ? '' : 's'}',
+                  style: theme.textTheme.titleMedium,
+                ),
+                const Spacer(),
+                if (_selected.isNotEmpty)
+                  Flexible(
+                    child: Text(
+                      _selected.join(' â€¢ '),
+                      style: theme.textTheme.bodySmall!
+                          .copyWith(color: theme.colorScheme.outline),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          // Results list
+          Expanded(
+            child: resultCount == 0
+                ? const Center(
+                    child: Text('No books match the current selection.'),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    itemCount: _matchingBooks.length,
+                    separatorBuilder: (_, __) =>
+                        Divider(height: 1, color: theme.dividerColor),
+                    itemBuilder: (context, i) {
+                      final b = _matchingBooks[i];
+                      final shelf = _shelfCache[b.id];
+
+                      return ListTile(
+                        onTap: () {
+                          Navigator.of(context).pushNamed(
+                            BookDetailScreen.route,
+                            arguments: {'id': b.id},
+                          );
+                        },
+                        onLongPress: () => _quickAddSheet(b),
+                        leading: ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: _coverThumb(b),
+                        ),
+                        title: Text(b.title),
+                        subtitle: Text(
+                          '${b.author}${b.tropes.isNotEmpty ? ' â€¢ ${b.tropes.join(', ')}' : ''}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: shelf == null
+                            ? IconButton(
+                                tooltip: 'Quick add',
+                                icon: const Icon(Icons.add_circle_outline),
+                                onPressed: () => _quickAddSheet(b),
+                              )
+                            : _shelfBadge(shelf),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+===== lib/data/book.dart =====
+
+// lib/data/book.dart
+import 'dart:convert';
+
+class Book {
+  final String id;            // stable key: isbn13 if present, else title|author (lowercase)
+  final String title;
+  final String author;
+  final String? isbn13;
+  final String? blurb;        // store blurb; expose it via a `description` getter for compatibility
+  final int? pageCount;
+  final String? publishedDate;
+  final List<String> tropes;
+  final List<String> subgenres;
+  final String? coverUrl;     // asset path ("assets/..."), file path, or http(s) URL
+
+  Book({
+    required this.id,
+    required this.title,
+    required this.author,
+    this.isbn13,
+    this.blurb,
+    this.pageCount,
+    this.publishedDate,
+    required this.tropes,
+    required this.subgenres,
+    this.coverUrl,
+  });
+
+  /// Back-compat for code that expects a `description` field.
+  String? get description => blurb;
+
+  // --- helpers ---------------------------------------------------------------
+
+  static String _s(dynamic v) => v == null ? '' : v.toString();
+
+  static int? _i(dynamic v) {
+    final s = _s(v).trim();
+    return s.isEmpty ? null : int.tryParse(s);
+    }
+
+  static List<String> _csv(dynamic v) {
+    final s = _s(v).trim();
+    if (s.isEmpty || s.toLowerCase() == 'none') return const [];
+    return s
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
+
+  factory Book.fromMap(Map<String, dynamic> m) {
+    // Title: prefer 'title', fallback to 'original_title'
+    final titleRaw = _s(m['title']).trim();
+    final title = titleRaw.isNotEmpty ? titleRaw : _s(m['original_title']).trim();
+
+    final author = _s(m['author']).trim();
+
+    // ID: prefer isbn13, else title|author
+    final isbn = _s(m['isbn13']).trim();
+    final id = isbn.isNotEmpty ? isbn : '${title.toLowerCase()}|${author.toLowerCase()}';
+
+    // Blurb: accept either 'blurb' or 'description'
+    final blurbRaw = _s(m['blurb']).trim().isNotEmpty
+        ? _s(m['blurb']).trim()
+        : _s(m['description']).trim();
+    final blurb = blurbRaw.isEmpty ? null : blurbRaw;
+
+    // Cover: accept either 'cover_url' or 'cover'
+    final coverUrlField = _s(m['cover_url']).trim();
+    final coverField = _s(m['cover']).trim();
+    final coverUrl = coverUrlField.isNotEmpty
+        ? coverUrlField
+        : (coverField.isNotEmpty ? coverField : null);
+
+    return Book(
+      id: id,
+      title: title,
+      author: author,
+      isbn13: isbn.isEmpty ? null : isbn,
+      blurb: blurb,
+      pageCount: _i(m['pagecount']),
+      publishedDate: _s(m['publisheddate']).trim().isEmpty
+          ? null
+          : _s(m['publisheddate']).trim(),
+      tropes: _csv(m['tropes']),
+      subgenres: _csv(m['subgenres']),
+      coverUrl: coverUrl,
+    );
+  }
+
+  static List<Book> listFromJsonString(String jsonStr) {
+    final data = json.decode(jsonStr);
+    if (data is List) {
+      return data.map((e) => Book.fromMap(e as Map<String, dynamic>)).toList();
+    }
+    return const [];
+  }
+}
+
+===== lib/data/book_repository.dart =====
+
+// lib/data/book_repository.dart
+import 'dart:convert';
+import 'package:flutter/services.dart' show rootBundle;
+
+import 'book.dart';
+
+class BookRepository {
+  BookRepository._();
+  static final BookRepository instance = BookRepository._();
+
+  bool _loaded = false;
+
+  // Master list
+  final List<Book> _books = <Book>[];
+
+  // Lookups
+  final Map<String, Book> _byId = <String, Book>{};
+
+  // trope -> set of book ids (all lowercase + cleaned for keys)
+  final Map<String, Set<String>> _tropeToBookIds = <String, Set<String>>{};
+
+  // all distinct tropes (lowercase, cleaned)
+  final Set<String> _allTropeSet = <String>{};
+
+  // Map alternate ids (like "title|author" from JSON or legacy) -> real id (often isbn13)
+  final Map<String, String> _altIdToReal = <String, String>{};
+
+  bool get isLoaded => _loaded;
+
+  /// Load once from assets/data/final_books.json.
+  Future<void> load() async {
+    if (_loaded) return;
+
+    final raw = await rootBundle.loadString('assets/data/final_books.json');
+    final List<dynamic> data = json.decode(raw) as List<dynamic>;
+
+    for (final row in data) {
+      final m = row as Map<String, dynamic>;
+      final b = Book.fromMap(m);
+
+      // Clean labels for indexing/display stability
+      final cleanedTropes =
+          b.tropes.map(_cleanLabel).where((t) => t.isNotEmpty).toList();
+      final cleanedSubgenres =
+          b.subgenres.map(_cleanLabel).where((s) => s.isNotEmpty).toList();
+
+      // Build the cleaned copy
+      final book = Book(
+        id: b.id,
+        title: b.title,
+        author: b.author,
+        isbn13: b.isbn13,
+        blurb: b.blurb,
+        pageCount: b.pageCount,
+        publishedDate: b.publishedDate,
+        tropes: cleanedTropes,
+        subgenres: cleanedSubgenres,
+        coverUrl: b.coverUrl,
+      );
+
+      // Store
+      _books.add(book);
+      _byId[book.id] = book;
+
+      // Alt id mapping:
+      // 1) title|author (from the record we just built)
+      final altFromTitleAuthor =
+          '${book.title.toLowerCase()}|${book.author.toLowerCase()}';
+      _altIdToReal[altFromTitleAuthor] = book.id;
+
+      // 2) If the JSON had an "id" field (often title|author), map that too.
+      final jsonIdRaw = (m['id'] ?? '').toString().trim().toLowerCase();
+      if (jsonIdRaw.isNotEmpty) {
+        _altIdToReal[jsonIdRaw] = book.id;
+      }
+
+      // Index by trope (lowercased)
+      for (final t in book.tropes) {
+        final key = t.toLowerCase();
+        _allTropeSet.add(key);
+        (_tropeToBookIds[key] ??= <String>{}).add(book.id);
+      }
+    }
+
+    _loaded = true;
+  }
+
+  // ---------- Public API ----------
+
+  List<Book> allBooks() => List.unmodifiable(_books);
+
+  /// Resolve ids -> books
+  List<Book> booksByIds(Set<String> ids) {
+    final out = <Book>[];
+    for (final id in ids) {
+      final b = _byId[id];
+      if (b != null) out.add(b);
+    }
+    return out;
+  }
+
+  /// Get one by id (or null)
+  Book? bookById(String id) => _byId[id];
+
+  /// If caller provides an alternate id (e.g. "title|author"),
+  /// try map to the real id we indexed with.
+  String? resolveId(String any) {
+    if (_byId.containsKey(any)) return any;
+    final key = any.trim().toLowerCase();
+    return _altIdToReal[key];
+  }
+
+  /// Distinct tropes in Title Case for UI.
+  List<String> allTropes() {
+    final out = _allTropeSet.map(_titleCase).toList();
+    out.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return out;
+  }
+
+  /// Books that match *all* selected tropes (AND).
+  Set<String> bookIdsForSelectedTropes(List<String> selected) {
+    if (selected.isEmpty) {
+      return _byId.keys.toSet();
+    }
+    Set<String>? running;
+    for (final t in selected) {
+      final key = _cleanLabel(t).toLowerCase();
+      final ids = _tropeToBookIds[key] ?? const <String>{};
+      running = running == null ? ids.toSet() : running.intersection(ids);
+      if (running.isEmpty) break;
+    }
+    return running ?? <String>{};
+  }
+
+  /// Given current selection, which additional tropes still yield results?
+  Set<String> viableNextTropes(List<String> selected) {
+    final selectedLc =
+        selected.map((e) => _cleanLabel(e).toLowerCase()).toSet();
+    final currentIds = bookIdsForSelectedTropes(selected);
+    if (currentIds.isEmpty) return <String>{};
+
+    final viable = <String>{};
+    for (final trope in _allTropeSet) {
+      if (selectedLc.contains(trope)) continue;
+      final idsForTrope = _tropeToBookIds[trope] ?? const <String>{};
+      if (currentIds.intersection(idsForTrope).isNotEmpty) {
+        viable.add(trope);
+      }
+    }
+    return viable;
+  }
+
+  /// Simple title/author search (case-insensitive).
+  List<Book> searchByText(String query, {Set<String>? withinIds}) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) {
+      return withinIds == null ? allBooks() : booksByIds(withinIds);
+    }
+
+    final src = withinIds == null ? _books : booksByIds(withinIds);
+    return src
+        .where((b) =>
+            b.title.toLowerCase().contains(q) ||
+            b.author.toLowerCase().contains(q))
+        .toList();
+  }
+
+  // ---------- Helpers ----------
+
+  String _cleanLabel(String s) {
+    var out = s.trim();
+
+    // Raw triple-quoted regex (easy quoting inside)
+    final leading = RegExp(r'''^[\]\[\)\(\}\{"'â€¢.,;:\-â€“â€”\s]+''');
+    final trailing = RegExp(r'''[\]\[\)\(\}\{"'â€¢.,;:\-â€“â€”\s]+$''');
+
+    out = out.replaceFirst(leading, '');
+    out = out.replaceFirst(trailing, '');
+    out = out.replaceAll(RegExp(r'\s+'), ' ');
+    return out;
+  }
+
+  String _titleCase(String s) {
+    if (s.isEmpty) return s;
+    return s
+        .split(' ')
+        .map((w) => w.isEmpty
+            ? w
+            : w[0].toUpperCase() + (w.length > 1 ? w.substring(1) : ''))
+        .join(' ');
+  }
+
+  // Kept for compatibility if something calls it.
+  Future<void> ensureLoaded() async {}
+}
+
+===== lib/data/user_lists.dart =====
+
+// lib/data/user_lists.dart
+import 'package:flutter/foundation.dart';            // <-- add
+import 'package:shared_preferences/shared_preferences.dart';
+
+enum Shelf { read, tbr, dnf }
+
+class UserLists {
+  static const _kRead = 'shelf_read';
+  static const _kTbr  = 'shelf_tbr';
+  static const _kDnf  = 'shelf_dnf';
+
+  /// Emits a tick every time shelves change. Listeners can reload.
+  static final ValueNotifier<int> changes = ValueNotifier<int>(0);  // <-- add
+
+  static String _key(Shelf s) => switch (s) {
+        Shelf.read => _kRead,
+        Shelf.tbr  => _kTbr,
+        Shelf.dnf  => _kDnf,
+      };
+
+  static Future<Set<String>> _getSet(Shelf s) async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList(_key(s)) ?? const <String>[];
+    return list.toSet();
+  }
+
+  static Future<void> _putSet(Shelf s, Set<String> ids) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_key(s), ids.toList());
+  }
+
+  /// Add to a shelf, removing from the others
+  static Future<void> addTo(Shelf s, String bookId) async {
+    final target = await _getSet(s);
+    target.add(bookId);
+
+    for (final other in Shelf.values) {
+      if (other == s) continue;
+      final set = await _getSet(other);
+      set.remove(bookId);
+      await _putSet(other, set);
+    }
+    await _putSet(s, target);
+
+    changes.value++;   // <-- notify
+  }
+
+  /// Remove a book id from all shelves
+  static Future<void> removeEverywhere(String bookId) async {
+    for (final s in Shelf.values) {
+      final set = await _getSet(s);
+      set.remove(bookId);
+      await _putSet(s, set);
+    }
+    changes.value++;   // <-- notify
+  }
+
+  static Future<Set<String>> all(Shelf s) => _getSet(s);
+
+  static Future<Shelf?> shelfFor(String bookId) async {
+    for (final s in Shelf.values) {
+      final set = await _getSet(s);
+      if (set.contains(bookId)) return s;
+    }
+    return null;
+  }
+
+  static Future allOrdered(Shelf shelf) async {}
+}
+
+===== lib/screens/library_screen.dart =====
+
+// lib/screens/library_screen.dart
+import 'package:flutter/material.dart';
+import '../data/user_lists.dart';
+import '../data/book_repository.dart';
+import '../data/book.dart';
+import '../widgets/book_cover.dart';
+import 'shelf_detail_screen.dart';
+
+class LibraryScreen extends StatefulWidget {
+  static const route = '/library';
+  const LibraryScreen({super.key});
+
+  @override
+  State<LibraryScreen> createState() => _LibraryScreenState();
+}
+
+class _LibraryScreenState extends State<LibraryScreen>
+    with AutomaticKeepAliveClientMixin {
+  bool _loading = true;
+
+  final Map<Shelf, List<Book>> _sections = <Shelf, List<Book>>{
+    Shelf.read: <Book>[],
+    Shelf.tbr: <Book>[],
+    Shelf.dnf: <Book>[],
+  };
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    UserLists.changes.addListener(_load);
+    _load();
+  }
+
+  @override
+  void dispose() {
+    UserLists.changes.removeListener(_load);
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+
+    final repo = BookRepository.instance;
+    await repo.load();
+
+    Future<List<Book>> booksFor(Shelf s) async {
+      final ids = await UserLists.all(s);
+      final normalized = ids.map((e) => repo.resolveId(e) ?? e).toSet();
+      final books = repo.booksByIds(normalized);
+      books.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+      return books;
+    }
+
+    final read = await booksFor(Shelf.read);
+    final tbr  = await booksFor(Shelf.tbr);
+    final dnf  = await booksFor(Shelf.dnf);
+
+    if (!mounted) return;
+    setState(() {
+      _sections[Shelf.read] = read;
+      _sections[Shelf.tbr]  = tbr;
+      _sections[Shelf.dnf]  = dnf;
+      _loading = false;
+    });
+  }
+
+  String _titleFor(Shelf s) => switch (s) {
+        Shelf.tbr => 'To Be Read',
+        Shelf.read => 'Read',
+        Shelf.dnf => 'Did Not Finish',
+      };
+
+  Color _chipBg(BuildContext ctx, Shelf s) => switch (s) {
+        Shelf.tbr  => Theme.of(ctx).colorScheme.primaryContainer,
+        Shelf.read => Theme.of(ctx).colorScheme.secondaryContainer,
+        Shelf.dnf  => Theme.of(ctx).colorScheme.errorContainer,
+      };
+
+  Color _chipFg(BuildContext ctx, Shelf s) => switch (s) {
+        Shelf.tbr  => Theme.of(ctx).colorScheme.onPrimaryContainer,
+        Shelf.read => Theme.of(ctx).colorScheme.onSecondaryContainer,
+        Shelf.dnf  => Theme.of(ctx).colorScheme.onErrorContainer,
+      };
+
+  Widget _shelfCard(BuildContext context, Shelf shelf) {
+    final books = _sections[shelf] ?? const <Book>[];
+    final count = books.length;
+
+    // Latest 3 covers for preview (staggered)
+    final preview = books.reversed.take(3).toList();
+
+    return Card(
+      elevation: 0,
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ShelfDetailScreen(shelf: shelf),
+              settings: const RouteSettings(name: ShelfDetailScreen.route),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              // Preview stack (3 covers staggered)
+              SizedBox(
+                width: 120,
+                height: 90,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned(
+                      left: 0,
+                      top: 10,
+                      child: _coverPreview(preview.length > 2 ? preview[2] : null),
+                    ),
+                    Positioned(
+                      left: 16,
+                      top: 0,
+                      child: _coverPreview(preview.length > 1 ? preview[1] : null),
+                    ),
+                    Positioned(
+                      left: 32,
+                      top: 14,
+                      child: _coverPreview(preview.isNotEmpty ? preview[0] : null),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Texts
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_titleFor(shelf),
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 6),
+                    Chip(
+                      label: Text('$count book${count == 1 ? '' : 's'}'),
+                      backgroundColor: _chipBg(context, shelf),
+                      labelStyle: TextStyle(
+                        color: _chipFg(context, shelf),
+                        fontWeight: FontWeight.w600,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    if (count == 0) ...[
+                      const SizedBox(height: 6),
+                      Text('No books yet â€” tap to add',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.outline,
+                          )),
+                    ],
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _coverPreview(Book? b) {
+    if (b == null) {
+      return Container(
+        width: 40,
+        height: 60,
+        decoration: BoxDecoration(
+          color: Colors.black12,
+          borderRadius: BorderRadius.circular(6),
+        ),
+      );
+    }
+    return bookCoverWidget(b.coverUrl, w: 40, h: 60);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        children: [
+          _shelfCard(context, Shelf.tbr),
+          _shelfCard(context, Shelf.read),
+          _shelfCard(context, Shelf.dnf),
+          const SizedBox(height: 8),
+          Center(
+            child: Text(
+              'Long-press a book in search to quick-add to a shelf',
+              style: TextStyle(color: Theme.of(context).colorScheme.outline),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+===== lib/screens/shelf_detail_screen.dart =====
+
+// lib/screens/shelf_detail_screen.dart
+import 'package:flutter/material.dart';
+import '../data/book.dart';
+import '../data/book_repository.dart';
+import '../data/user_lists.dart';
+import '../widgets/bookshelf.dart';
+import 'book_detail_screen.dart';
+
+class ShelfDetailScreen extends StatefulWidget {
+  static const route = '/shelf-detail';
+  final Shelf shelf;
+
+  const ShelfDetailScreen({super.key, required this.shelf});
+
+  @override
+  State<ShelfDetailScreen> createState() => _ShelfDetailScreenState();
+}
+
+class _ShelfDetailScreenState extends State<ShelfDetailScreen> {
+  bool _loading = true;
+  List<Book> _books = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    UserLists.changes.addListener(_load);
+    _load();
+  }
+
+  @override
+  void dispose() {
+    UserLists.changes.removeListener(_load);
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+
+    final repo = BookRepository.instance;
+    await repo.load();
+
+    final ids = await UserLists.all(widget.shelf);
+    final normalized = ids.map((e) => repo.resolveId(e) ?? e).toSet();
+    final books = repo.booksByIds(normalized);
+    books.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+
+    if (mounted) {
+      setState(() {
+        _books = books;
+        _loading = false;
+      });
+    }
+  }
+
+  String _titleFor(Shelf s) => switch (s) {
+        Shelf.tbr => 'To Be Read',
+        Shelf.read => 'Read',
+        Shelf.dnf => 'Did Not Finish',
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_titleFor(widget.shelf)),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _books.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('No books yet on this shelf',
+                            style: theme.textTheme.titleMedium),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: 260,
+                          child: BookShelfGrid(
+                            books: const [],
+                            columns: 4,
+                            coverWidth: 80,
+                            coverHeight: 120,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: BookShelfGrid(
+                    books: _books,
+                    columns: 4,
+                    coverWidth: 88,
+                    coverHeight: 132,
+                    onTap: (b) {
+                      Navigator.of(context).pushNamed(
+                        BookDetailScreen.route,
+                        arguments: {'id': b.id},
+                      );
+                    },
+                  ),
+                ),
+    );
+  }
+}
+
+===== lib/screens/book_detail_screen.dart =====
+
+// lib/screens/book_detail_screen.dart
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../data/book.dart';
+import '../data/book_repository.dart';
+import '../data/user_lists.dart';
+import '../widgets/book_cover.dart';
+import '../widgets/rating_row.dart';
+
+class BookDetailScreen extends StatefulWidget {
+  static const route = '/book-detail';
+  const BookDetailScreen({super.key});
+
+  @override
+  State<BookDetailScreen> createState() => _BookDetailScreenState();
+}
+
+class _BookDetailScreenState extends State<BookDetailScreen> {
+  bool _loading = true;
+  Book? _book;
+  Shelf? _currentShelf;
+
+  int _starRating = 0;  // 0..5
+  int _spiceRating = 0; // 0..3
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  Future<void> _load() async {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    final id = (args is Map && args['id'] is String) ? args['id'] as String : null;
+
+    final repo = BookRepository.instance;
+    await repo.load();
+
+    final b = id == null ? null : repo.bookById(id);
+    _currentShelf = id == null ? null : await UserLists.shelfFor(id);
+
+    if (b != null) {
+      final prefs = await SharedPreferences.getInstance();
+      _starRating = prefs.getInt(_starsKey(b.id)) ?? 0;
+      _spiceRating = prefs.getInt(_spiceKey(b.id)) ?? 0;
+    }
+
+    setState(() { _book = b; _loading = false; });
+  }
+
+  String _starsKey(String id) => 'rating_stars_$id';
+  String _spiceKey(String id) => 'rating_spice_$id';
+
+  Future<void> _saveRatings() async {
+    final b = _book; if (b == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_starsKey(b.id), _starRating);
+    await prefs.setInt(_spiceKey(b.id), _spiceRating);
+  }
+
+  void _toast(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _setShelf(Shelf s) async {
+    final b = _book; if (b == null) return;
+    await UserLists.addTo(s, b.id);
+    _currentShelf = await UserLists.shelfFor(b.id);
+    if (mounted) setState(() {});
+    switch (s) {
+      case Shelf.tbr: _toast('Added to TBR'); break;
+      case Shelf.read: _toast('Marked as Read'); break;
+      case Shelf.dnf: _toast('Marked as DNF'); break;
+    }
+  }
+
+  Future<void> _removeShelves() async {
+    final b = _book; if (b == null) return;
+    await UserLists.removeEverywhere(b.id);
+    _currentShelf = null;
+    if (mounted) setState(() {});
+    _toast('Removed from all shelves');
+  }
+
+  // --- Goodreads-style status button ---
+
+  (String label, Color bg) _statusVisual(ThemeData theme) {
+    return switch (_currentShelf) {
+      Shelf.tbr  => ('In TBR', theme.colorScheme.primary),
+      Shelf.read => ('Read', Colors.green.shade700),
+      Shelf.dnf  => ('DNF', Colors.red.shade700),
+      _          => ('Want to Read', theme.colorScheme.primary),
+    };
+  }
+
+  Widget _statusButton(ThemeData theme) {
+    final (label, bg) = _statusVisual(theme);
+    return Row(
+      children: [
+        Expanded(
+          child: FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: bg,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            onPressed: () async {
+              // If no shelf yet, tapping sets TBR immediately (Goodreads-style)
+              if (_currentShelf == null) {
+                await _setShelf(Shelf.tbr);
+              } else {
+                // If already has a shelf, tap opens the chooser
+                await _openShelfMenu(theme);
+              }
+            },
+            icon: const Icon(Icons.bookmark),
+            label: Text(label),
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 44,
+          height: 44,
+          child: OutlinedButton(
+            onPressed: () => _openShelfMenu(theme),
+            child: const Icon(Icons.arrow_drop_down),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openShelfMenu(ThemeData theme) async {
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final box = context.findRenderObject() as RenderBox?;
+    final offset = box == null ? Offset.zero : box.localToGlobal(Offset.zero, ancestor: overlay);
+    final selected = await showMenu<_MenuAction>(
+      context: context,
+      position: RelativeRect.fromLTRB(offset.dx, offset.dy + (box?.size.height ?? 0), offset.dx, 0),
+      items: [
+        PopupMenuItem(
+          value: _MenuAction.toTbr,
+          child: Row(
+            children: [
+              Icon(Icons.bookmark_add_outlined,
+                  color: _currentShelf == Shelf.tbr ? theme.colorScheme.primary : null),
+              const SizedBox(width: 12),
+              const Text('Add to TBR'),
+              if (_currentShelf == Shelf.tbr) ...[
+                const SizedBox(width: 8),
+                const Icon(Icons.check, size: 18),
+              ],
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: _MenuAction.toRead,
+          child: Row(
+            children: [
+              Icon(Icons.check_circle_outline,
+                  color: _currentShelf == Shelf.read ? theme.colorScheme.primary : null),
+              const SizedBox(width: 12),
+              const Text('Mark as Read'),
+              if (_currentShelf == Shelf.read) ...[
+                const SizedBox(width: 8),
+                const Icon(Icons.check, size: 18),
+              ],
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: _MenuAction.toDnf,
+          child: Row(
+            children: [
+              Icon(Icons.not_interested_outlined,
+                  color: _currentShelf == Shelf.dnf ? theme.colorScheme.primary : null),
+              const SizedBox(width: 12),
+              const Text('Mark as DNF'),
+              if (_currentShelf == Shelf.dnf) ...[
+                const SizedBox(width: 8),
+                const Icon(Icons.check, size: 18),
+              ],
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: _MenuAction.removeAll,
+          child: Row(
+            children: [
+              Icon(Icons.remove_circle_outline),
+              SizedBox(width: 12),
+              Text('Remove from shelves'),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    switch (selected) {
+      case _MenuAction.toTbr: await _setShelf(Shelf.tbr); break;
+      case _MenuAction.toRead: await _setShelf(Shelf.read); break;
+      case _MenuAction.toDnf: await _setShelf(Shelf.dnf); break;
+      case _MenuAction.removeAll: await _removeShelves(); break;
+      case null: break;
+    }
+  }
+
+  // --- Ratings (5 stars, 3 spice) ---
+
+  Widget _starRow() {
+    return Row(
+      children: List.generate(5, (i) {
+        final idx = i + 1;
+        final on = _starRating >= idx;
+        return IconButton(
+          visualDensity: VisualDensity.compact,
+          icon: Icon(on ? Icons.star : Icons.star_border),
+          color: on ? Colors.amber : null,
+          onPressed: () { setState(() => _starRating = idx); _saveRatings(); },
+        );
+      }),
+    );
+  }
+
+  Widget _spiceRow() {
+    return Row(
+      children: List.generate(3, (i) {
+        final idx = i + 1;
+        final on = _spiceRating >= idx;
+        return IconButton(
+          visualDensity: VisualDensity.compact,
+          icon: Icon(on ? Icons.local_fire_department : Icons.local_fire_department_outlined),
+          color: on ? Colors.redAccent : null,
+          onPressed: () { setState(() => _spiceRating = idx); _saveRatings(); },
+        );
+      }),
+    );
+  }
+
+  // --- Info helpers ---
+
+  Widget _infoRow(IconData icon, String label, String value) {
+    if (value.trim().isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(color: Colors.black87),
+                children: [
+                  TextSpan(text: '$label: ', style: const TextStyle(fontWeight: FontWeight.w600)),
+                  TextSpan(text: value),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _chipsLight(String title, List<String> items, Color bg, Color fg) {
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(padding: const EdgeInsets.only(bottom: 6), child: Text(title, style: const TextStyle(fontWeight: FontWeight.w600))),
+        Wrap(
+          spacing: 8, runSpacing: 8,
+          children: items.map((t) => Chip(
+            label: Text(t),
+            backgroundColor: bg.withOpacity(0.5),
+            labelStyle: TextStyle(color: fg),
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          )).toList(),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (_loading) {
+      return Scaffold(appBar: AppBar(title: const Text('Book')), body: const Center(child: CircularProgressIndicator()));
+    }
+    if (_book == null) {
+      return Scaffold(appBar: AppBar(title: const Text('Book')), body: const Center(child: Text('Book not found')));
+    }
+    final b = _book!;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(b.title, overflow: TextOverflow.ellipsis),
+        actions: [
+          if (_currentShelf != null) Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: Center(child: _statusVisual(theme).$1.contains('DNF') ? const Icon(Icons.not_interested, color: Colors.red) :
+                                      _statusVisual(theme).$1.contains('Read') ? const Icon(Icons.check_circle, color: Colors.green) :
+                                      const Icon(Icons.bookmark, color: Colors.white)),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              bookCoverWidget(b.coverUrl, w: 120, h: 180),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(b.title, style: theme.textTheme.titleLarge, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 4),
+                    Text(b.author, style: theme.textTheme.titleMedium!.copyWith(color: theme.colorScheme.primary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 12),
+                    _infoRow(Icons.numbers, 'ISBN-13', b.isbn13 ?? ''),
+                    _infoRow(Icons.menu_book_outlined, 'Pages', b.pageCount?.toString() ?? ''),
+                    _infoRow(Icons.event, 'Published', b.publishedDate ?? ''),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Goodreads-style status button
+          _statusButton(theme),
+
+          const SizedBox(height: 16),
+          const Divider(),
+
+Text('Your Rating', style: theme.textTheme.titleMedium),
+RatingRow(
+  stars: _starRating,          // keep current value
+  spice: _spiceRating,         // keep current value
+  onStars: (v) {               // persist like before
+    setState(() => _starRating = v);
+    _saveRatings();
+  },
+  onSpice: (v) {
+    setState(() => _spiceRating = v);
+    _saveRatings();
+  },
+),
+
+          
+          const SizedBox(height: 16),
+          const Divider(),
+
+          if ((b.blurb ?? '').trim().isNotEmpty) ...[
+            Text('Blurb', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 6),
+            _ExpandableText(b.blurb!.trim(), trimLines: 6),
+            const SizedBox(height: 16),
+          ],
+
+          _chipsLight('Tropes', b.tropes, theme.colorScheme.secondaryContainer, theme.colorScheme.onSecondaryContainer),
+          const SizedBox(height: 12),
+          _chipsLight('Subgenres', b.subgenres, theme.colorScheme.tertiaryContainer, theme.colorScheme.onTertiaryContainer),
+        ],
+      ),
+    );
+  }
+}
+
+enum _MenuAction { toTbr, toRead, toDnf, removeAll }
+
+class _ExpandableText extends StatefulWidget {
+  final String text;
+  final int trimLines;
+  const _ExpandableText(this.text, {this.trimLines = 5});
+
+  @override
+  State<_ExpandableText> createState() => _ExpandableTextState();
+}
+
+class _ExpandableTextState extends State<_ExpandableText> {
+  bool _expanded = false;
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.text,
+          maxLines: _expanded ? null : widget.trimLines,
+          overflow: _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
+          textAlign: TextAlign.start,
+        ),
+        const SizedBox(height: 4),
+        TextButton(
+          onPressed: () => setState(() => _expanded = !_expanded),
+          child: Text(_expanded ? 'Show less' : 'Read more', style: TextStyle(color: theme.colorScheme.primary)),
+        ),
+      ],
+    );
+  }
+}
+
+===== lib/widgets/book_cover.dart =====
+
+// lib/widgets/book_cover.dart
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
+
+/// Unified cover image widget:
+/// - assets:   "assets/..." -> Image.asset
+/// - network:  "http/https" -> Image.network
+/// - file:     /absolute/path (mobile/desktop only) -> Image.file
+/// - null/"" : placeholder
+Widget bookCoverWidget(
+  String? coverUrl, {
+  double w = 48,
+  double h = 72,
+  BorderRadius borderRadius = const BorderRadius.all(Radius.circular(6)),
+}) {
+  Widget fallback() => SizedBox(
+        width: w,
+        height: h,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.black12,
+            borderRadius: borderRadius,
+          ),
+          child: const Icon(Icons.menu_book, color: Colors.black38, size: 20),
+        ),
+      );
+
+  final url = (coverUrl ?? '').trim();
+  if (url.isEmpty) return fallback();
+
+  final content = () {
+    if (url.startsWith('assets/')) {
+      return Image.asset(
+        url,
+        width: w,
+        height: h,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback(),
+      );
+    }
+    if (url.startsWith('http')) {
+      return Image.network(
+        url,
+        width: w,
+        height: h,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback(),
+      );
+    }
+    if (kIsWeb) return fallback(); // no File IO on web
+
+    try {
+      return Image.file(
+        File(url),
+        width: w,
+        height: h,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback(),
+      );
+    } catch (_) {
+      return fallback();
+    }
+  }();
+
+  return ClipRRect(borderRadius: borderRadius, child: content);
+}
+
+===== lib/theme/app_theme.dart =====
+
+// lib/theme/app_theme.dart
+import 'package:flutter/material.dart';
+
+class AppTheme {
+  static ThemeData light = ThemeData(
+    useMaterial3: true,
+    colorSchemeSeed: const Color(0xFF7B6EF6), // playful purple
+    brightness: Brightness.light,
+
+    // Typography tweaks
+    textTheme: const TextTheme(
+      headlineSmall: TextStyle(fontWeight: FontWeight.w700, letterSpacing: -0.2),
+      titleLarge: TextStyle(fontWeight: FontWeight.w700),
+      titleMedium: TextStyle(fontWeight: FontWeight.w600),
+      labelLarge: TextStyle(fontWeight: FontWeight.w600),
+    ),
+
+    // Buttons
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    ),
+
+    // Chips
+    chipTheme: ChipThemeData(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    ),
+
+    // Nav bar
+    navigationBarTheme: const NavigationBarThemeData(
+      height: 64,
+      indicatorShape: StadiumBorder(),
+      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+    ),
+
+    // Input fields
+    inputDecorationTheme: InputDecorationTheme(
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+    ),
+
+    // ListTiles (so cards feel softer without touching CardTheme)
+    listTileTheme: const ListTileThemeData(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+    ),
+  );
+
+  static ThemeData dark = ThemeData(
+    useMaterial3: true,
+    colorSchemeSeed: const Color(0xFF7B6EF6),
+    brightness: Brightness.dark,
+    textTheme: const TextTheme(
+      headlineSmall: TextStyle(fontWeight: FontWeight.w700, letterSpacing: -0.2),
+      titleLarge: TextStyle(fontWeight: FontWeight.w700),
+      titleMedium: TextStyle(fontWeight: FontWeight.w600),
+      labelLarge: TextStyle(fontWeight: FontWeight.w600),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    ),
+    chipTheme: ChipThemeData(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    ),
+    navigationBarTheme: const NavigationBarThemeData(
+      height: 64,
+      indicatorShape: StadiumBorder(),
+      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+    ),
+    listTileTheme: const ListTileThemeData(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+    ),
+  );
+}
