@@ -3,23 +3,26 @@ import 'package:flutter/material.dart';
 
 import '../data/book.dart';
 import '../data/book_repository.dart';
-import '../widgets/book_cover.dart';
-import 'book_detail_screen.dart';
+import '../widgets/book_results_list.dart';
 
 /// Pass arguments like:
-///   Navigator.pushNamed(
-///     context,
-///     BooksResultsScreen.route,
-///     arguments: {'ids': <Set<String>> OR List<String>, 'title': 'Your Title'},
-///   );
-/// OR
-///   Navigator.pushNamed(
-///     context,
-///     BooksResultsScreen.route,
-///     arguments: {'query': 'search text', 'title': 'Search Results'},
-///   );
+///
+/// Navigator.pushNamed(
+///   context,
+///   BooksResultsScreen.route,
+///   arguments: {'ids': <Set<String>> OR List<String>, 'title': 'Your Title'},
+/// );
+///
+/// OR:
+///
+/// Navigator.pushNamed(
+///   context,
+///   BooksResultsScreen.route,
+///   arguments: {'query': 'search text'},
+/// );
 class BooksResultsScreen extends StatefulWidget {
   static const route = '/books-results';
+
   const BooksResultsScreen({super.key});
 
   @override
@@ -29,12 +32,12 @@ class BooksResultsScreen extends StatefulWidget {
 class _BooksResultsScreenState extends State<BooksResultsScreen> {
   bool _loading = true;
   String _title = 'Results';
-  List<Book> _items = [];
+  List<Book> _items = const [];
 
   @override
   void initState() {
     super.initState();
-    // wait for context to be ready
+    // wait for context / arguments
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
@@ -43,78 +46,66 @@ class _BooksResultsScreenState extends State<BooksResultsScreen> {
     await repo.load();
 
     final args = ModalRoute.of(context)?.settings.arguments;
-    Set<String> ids = {};
+    Set<String> ids = <String>{};
     String query = '';
     String? title;
 
     if (args is Map) {
-      if (args['ids'] is Set<String>) ids = args['ids'] as Set<String>;
-      if (args['ids'] is List) ids = (args['ids'] as List).map((e) => e.toString()).toSet();
-      if (args['query'] is String) query = args['query'] as String;
-      if (args['title'] is String) title = args['title'] as String;
+      if (args['ids'] is Set<String>) {
+        ids = args['ids'] as Set<String>;
+      } else if (args['ids'] is List) {
+        ids = (args['ids'] as List).map((e) => e.toString()).toSet();
+      }
+      if (args['query'] is String) {
+        query = args['query'] as String;
+      }
+      if (args['title'] is String) {
+        title = args['title'] as String;
+      }
     }
 
-    _title = title ?? (ids.isNotEmpty ? 'Results' : (query.isNotEmpty ? 'Search Results' : 'Results'));
+    _title = title ??
+        (ids.isNotEmpty
+            ? 'Results'
+            : (query.trim().isNotEmpty ? 'Search Results' : 'Results'));
 
     if (ids.isNotEmpty) {
       _items = repo.booksByIds(ids);
     } else if (query.trim().isNotEmpty) {
       final q = query.trim().toLowerCase();
       final all = repo.allBooks();
-      _items = all.where((b) =>
-        b.title.toLowerCase().contains(q) ||
-        b.author.toLowerCase().contains(q) ||
-        b.tropes.any((t) => t.toLowerCase().contains(q)),
-      ).toList();
+      _items = all
+          .where((b) =>
+              b.title.toLowerCase().contains(q) ||
+              b.author.toLowerCase().contains(q) ||
+              b.tropes.any((t) => t.toLowerCase().contains(q)))
+          .toList();
     } else {
-      _items = [];
+      _items = const <Book>[];
     }
 
-    _items.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
-
-    setState(() => _loading = false);
+    setState(() {
+      _loading = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     if (_loading) {
+      final theme = Theme.of(context);
       return Scaffold(
         appBar: AppBar(title: Text(_title)),
-        body: const Center(child: CircularProgressIndicator()),
+        body: Center(
+          child: CircularProgressIndicator(
+            color: theme.colorScheme.primary,
+          ),
+        ),
       );
     }
 
     return Scaffold(
       appBar: AppBar(title: Text(_title)),
-      body: _items.isEmpty
-          ? const Center(child: Text('No results'))
-          : ListView.separated(
-              itemCount: _items.length,
-              separatorBuilder: (_, __) => Divider(height: 1, color: theme.dividerColor),
-              itemBuilder: (context, i) {
-                final b = _items[i];
-                return ListTile(
-                  leading: ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: bookCoverWidget(b.coverUrl, w: 48, h: 72),
-                  ),
-                  title: Text(b.title),
-                  subtitle: Text(
-                    '${b.author}${b.tropes.isNotEmpty ? ' • ${b.tropes.join(', ')}' : ''}',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  onTap: () {
-                    Navigator.of(context).pushNamed(
-                      BookDetailScreen.route,
-                      arguments: {'id': b.id},
-                    );
-                  },
-                );
-              },
-            ),
+      body: BookResultsList(books: _items),
     );
   }
 }

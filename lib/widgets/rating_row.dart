@@ -2,46 +2,89 @@
 import 'package:flutter/material.dart';
 
 class RatingRow extends StatelessWidget {
-  final int stars;   // 0..5
-  final int spice;   // 0..3
-  final void Function(int newStars)? onStars;
-  final void Function(int newSpice)? onSpice;
+  final int stars; // 0..5
+  final int spice; // 0..3 or 0..5, up to you
+  final ValueChanged<int> onStars;
+  final ValueChanged<int> onSpice;
 
   const RatingRow({
     super.key,
     required this.stars,
     required this.spice,
-    this.onStars,
-    this.onSpice,
+    required this.onStars,
+    required this.onSpice,
   });
 
   @override
   Widget build(BuildContext context) {
-    Widget star(int i) => IconButton(
-      visualDensity: VisualDensity.compact,
-      iconSize: 20,
-      padding: const EdgeInsets.all(2),
-      onPressed: onStars == null ? null : () => onStars!(i),
-      icon: Icon(
-        i <= stars ? Icons.star_rounded : Icons.star_outline_rounded,
-      ),
-    );
+    final theme = Theme.of(context);
 
-    Widget flame(int i) => IconButton(
-      visualDensity: VisualDensity.compact,
-      iconSize: 18,
-      padding: const EdgeInsets.all(2),
-      onPressed: onSpice == null ? null : () => onSpice!(i),
-      icon: Icon(
-        i <= spice ? Icons.local_fire_department_rounded : Icons.local_fire_department_outlined,
-      ),
-    );
-
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ...List.generate(5, (i) => star(i + 1)),
-        const SizedBox(width: 12),
-        ...List.generate(3, (i) => flame(i + 1)),
+        // Main star rating row
+        Row(
+          children: [
+            Text(
+              'My rating',
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(width: 12),
+            Wrap(
+              spacing: 4,
+              children: List.generate(5, (index) {
+                final value = index + 1;
+                final filled = value <= stars;
+                return IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 32, minHeight: 32),
+                  onPressed: () => onStars(value),
+                  icon: Icon(
+                    filled ? Icons.star : Icons.star_border,
+                    size: 20,
+                    color: filled
+                        ? theme.colorScheme.secondary
+                        : theme.disabledColor,
+                  ),
+                );
+              }),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        // Spice row underneath
+        Row(
+          children: [
+            Text(
+              'Spice',
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(width: 12),
+            Wrap(
+              spacing: 4,
+              children: List.generate(3, (index) {
+                final value = index + 1;
+                final filled = value <= spice;
+                return IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 32, minHeight: 32),
+                  onPressed: () => onSpice(value),
+                  icon: Icon(
+                    Icons.local_fire_department,
+                    size: 20,
+                    color: filled
+                        ? theme.colorScheme.error
+                        : theme.disabledColor,
+                  ),
+                );
+              }),
+            ),
+          ],
+        ),
       ],
     );
   }

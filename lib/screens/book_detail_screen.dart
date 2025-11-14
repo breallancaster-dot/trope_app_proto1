@@ -6,6 +6,7 @@ import '../data/book.dart';
 import '../data/book_repository.dart';
 import '../data/user_lists.dart';
 import '../widgets/book_cover.dart';
+import '../widgets/rating_row.dart';
 import 'label_results_screen.dart';
 
 class BookDetailScreen extends StatefulWidget {
@@ -14,330 +15,356 @@ class BookDetailScreen extends StatefulWidget {
   /// Convenience to push this page using a strongly typed route.
   static Route<Object?> materialRoute({required String bookId}) {
     return MaterialPageRoute(
-      settings: const RouteSettings(name: route),
       builder: (_) => BookDetailScreen(bookId: bookId),
+      settings: const RouteSettings(name: route),
     );
   }
 
   final String bookId;
-  const BookDetailScreen({super.key, required this.bookId});
+
+  const BookDetailScreen({
+    super.key,
+    required this.bookId,
+  });
 
   @override
   State<BookDetailScreen> createState() => _BookDetailScreenState();
-
-  static fromRouteArgs(BuildContext ctx) {}
 }
 
 class _BookDetailScreenState extends State<BookDetailScreen> {
   bool _loading = true;
   Book? _book;
   Shelf? _currentShelf;
+  int _rating = 0; // 0..5
+  int _spice = 0; // 0..3
+  String _notes = '';
+  bool _savingNotes = false;
+  List<Book> _related = const [];
 
-  int _starRating = 0;  // 0..5
-  int _spiceRating = 0; // 0..3
+  static const _kRatingPrefix = 'book_rating_';
+  static const _kSpicePrefix = 'book_spice_';
+  static const _kNotesPrefix = 'book_notes_';
 
   @override
   void initState() {
     super.initState();
-    _bootstrap();
+    _load();
   }
 
-  Future<void> _bootstrap() async {
+  Future<void> _load() async {
     final repo = BookRepository.instance;
     await repo.load();
+    final book = repo.bookById(widget.bookId);
 
-    final b = repo.bookById(widget.bookId);
-    final shelf = await UserLists.shelfFor(widget.bookId);
-
-    if (b != null) {
-      final prefs = await SharedPreferences.getInstance();
-      _starRating = prefs.getInt(_starsKey(b.id)) ?? 0;
-      _spiceRating = prefs.getInt(_spiceKey(b.id)) ?? 0;
+    if (book == null) {
+      setState(() {
+        _book = null;
+        _loading = false;
+      });
+      return;
     }
 
-    if (!mounted) return;
+    final shelf = await UserLists.shelfFor(book.id);
+    final prefs = await SharedPreferences.getInstance();
+
+    final rating = prefs.getInt('$_kRatingPrefix${book.id}') ?? 0;
+    final spice = prefs.getInt('$_kSpicePrefix${book.id}') ?? 0;
+    final notes = prefs.getString('$_kNotesPrefix${book.id}') ?? '';
+
+    final related = _computeRelated(repo, book);
+
     setState(() {
-      _book = b;
+      _book = book;
       _currentShelf = shelf;
+      _rating = rating;
+      _spice = spice;
+      _notes = notes;
+      _related = related;
       _loading = false;
     });
   }
 
-  String _starsKey(String id) => 'rating_stars_$id';
-  String _spiceKey(String id) => 'rating_spice_$id';
-
-  Future<void> _saveRatings() async {
-    final b = _book; if (b == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_starsKey(b.id), _starRating);
-    await prefs.setInt(_spiceKey(b.id), _spiceRating);
-  }
-
-  void _toast(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-  }
-
-  Future<void> _setShelf(Shelf s) async {
-    final b = _book; if (b == null) return;
-    await UserLists.addTo(s, b.id);
-    _currentShelf = await UserLists.shelfFor(b.id);
-    if (mounted) setState(() {});
-    switch (s) {
-      case Shelf.tbr:  _toast('Added to TBR'); break;
-      case Shelf.read: _toast('Marked as Read'); break;
-      case Shelf.dnf:  _toast('Marked as DNF'); break;
+  List<Book> _computeRelated(BookRepository repo, Book book) {
+    // Dedupe upstream books by id first, in case the data source has duplicates.
+    final Map<String, Book> byId = <String, Book>{};
+    for (final b in repo.allBooks()) {
+      byId[b.id] = b;
     }
-  }
+    final all = byId.values.toList();
+    if (all.isEmpty) return const [];
 
-  Future<void> _removeShelves() async {
-    final b = _book; if (b == null) return;
-    await UserLists.removeEverywhere(b.id);
-    _currentShelf = null;
-    if (mounted) setState(() {});
-    _toast('Removed from all shelves');
-  }
+    final thisTropeSet = book.tropes.toSet();
+    final thisSubSet = book.subgenres.toSet();
 
-  (String label, Color bg) _statusVisual(ThemeData theme) {
-    return switch (_currentShelf) {
-      Shelf.tbr  => ('In TBR', theme.colorScheme.primary),
-      Shelf.read => ('Read', Colors.green.shade700),
-      Shelf.dnf  => ('DNF', Colors.red.shade700),
-      _          => ('Want to Read', theme.colorScheme.primary),
-    };
-  }
+    final scored = <Book, int>{};
 
-  Future<void> _openShelfMenu(ThemeData theme) async {
-    final selected = await showMenu<_MenuAction>(
-      context: context,
-      position: const RelativeRect.fromLTRB(24, 110, 24, 0),
-      items: [
-        PopupMenuItem(
-          value: _MenuAction.toTbr,
-          child: Row(
-            children: [
-              Icon(Icons.bookmark_add_outlined,
-                  color: _currentShelf == Shelf.tbr ? theme.colorScheme.primary : null),
-              const SizedBox(width: 12),
-              const Text('Add to TBR'),
-              if (_currentShelf == Shelf.tbr) ...[
-                const SizedBox(width: 8),
-                const Icon(Icons.check, size: 18),
-              ],
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: _MenuAction.toRead,
-          child: Row(
-            children: [
-              Icon(Icons.check_circle_outline,
-                  color: _currentShelf == Shelf.read ? theme.colorScheme.primary : null),
-              const SizedBox(width: 12),
-              const Text('Mark as Read'),
-              if (_currentShelf == Shelf.read) ...[
-                const SizedBox(width: 8),
-                const Icon(Icons.check, size: 18),
-              ],
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: _MenuAction.toDnf,
-          child: Row(
-            children: [
-              Icon(Icons.not_interested_outlined,
-                  color: _currentShelf == Shelf.dnf ? theme.colorScheme.primary : null),
-              const SizedBox(width: 12),
-              const Text('Mark as DNF'),
-              if (_currentShelf == Shelf.dnf) ...[
-                const SizedBox(width: 8),
-                const Icon(Icons.check, size: 18),
-              ],
-            ],
-          ),
-        ),
-        const PopupMenuDivider(),
-        const PopupMenuItem(
-          value: _MenuAction.removeAll,
-          child: Row(
-            children: [
-              Icon(Icons.remove_circle_outline),
-              SizedBox(width: 12),
-              Text('Remove from shelves'),
-            ],
-          ),
-        ),
-      ],
-    );
+    for (final other in all) {
+      if (other.id == book.id) continue;
 
-    switch (selected) {
-      case _MenuAction.toTbr: await _setShelf(Shelf.tbr); break;
-      case _MenuAction.toRead: await _setShelf(Shelf.read); break;
-      case _MenuAction.toDnf: await _setShelf(Shelf.dnf); break;
-      case _MenuAction.removeAll: await _removeShelves(); break;
-      case null: break;
+      final tropesOverlap =
+          thisTropeSet.intersection(other.tropes.toSet()).length;
+      final subsOverlap =
+          thisSubSet.intersection(other.subgenres.toSet()).length;
+
+      final score = tropesOverlap * 2 + subsOverlap;
+      if (score > 0) {
+        scored[other] = score;
+      }
     }
+
+    final list = scored.entries.toList()
+      ..sort((a, b) {
+        final diff = b.value.compareTo(a.value);
+        if (diff != 0) return diff;
+        return a.key.title.toLowerCase().compareTo(b.key.title.toLowerCase());
+      });
+
+    // Don’t need a wall of recs; top 12 is fine.
+    return list.map((e) => e.key).take(12).toList();
   }
 
-  Widget _statusButton(ThemeData theme) {
-    final (label, bg) = _statusVisual(theme);
-    return Row(
-      children: [
-        Expanded(
-          child: FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: bg,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-            onPressed: () async {
-              if (_currentShelf == null) {
-                await _setShelf(Shelf.tbr);
-              } else {
-                await _openShelfMenu(theme);
-              }
-            },
-            icon: const Icon(Icons.bookmark),
-            label: Text(label),
-          ),
-        ),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 44,
-          height: 44,
-          child: OutlinedButton(
-            onPressed: () => _openShelfMenu(theme),
-            child: const Icon(Icons.arrow_drop_down),
-          ),
-        ),
-      ],
-    );
+  String? _formatDate(String? raw) {
+    if (raw == null) return null;
+    final v = raw.trim();
+    if (v.isEmpty) return null;
+
+    // Expecting YYYY-MM-DD → dd/MM/yyyy; fall back to original string.
+    final fullDate = RegExp(r'^\d{4}-\d{2}-\d{2}$');
+    if (fullDate.hasMatch(v)) {
+      final dt = DateTime.tryParse(v);
+      if (dt != null) {
+        final d = dt.day.toString().padLeft(2, '0');
+        final m = dt.month.toString().padLeft(2, '0');
+        final y = dt.year.toString();
+        return '$d/$m/$y';
+      }
+    }
+    return v;
   }
 
-  Widget _starRow() {
-    return Row(
-      children: List.generate(5, (i) {
-        final idx = i + 1;
-        final on = _starRating >= idx;
-        return IconButton(
-          visualDensity: VisualDensity.compact,
-          icon: Icon(on ? Icons.star : Icons.star_border),
-          color: on ? Colors.amber : null,
-          onPressed: () { setState(() => _starRating = idx); _saveRatings(); },
-        );
-      }),
-    );
-  }
+  Future<void> _setShelf(Shelf? shelf) async {
+    final b = _book;
+    if (b == null) return;
 
-  Widget _spiceRow() {
-    return Row(
-      children: List.generate(3, (i) {
-        final idx = i + 1;
-        final on = _spiceRating >= idx;
-        return IconButton(
-          visualDensity: VisualDensity.compact,
-          icon: Icon(on ? Icons.local_fire_department : Icons.local_fire_department_outlined),
-          color: on ? Colors.redAccent : null,
-          onPressed: () { setState(() => _spiceRating = idx); _saveRatings(); },
-        );
-      }),
-    );
-  }
+    if (shelf == null) {
+      await UserLists.removeEverywhere(b.id);
+    } else {
+      await UserLists.addTo(shelf, b.id);
+    }
 
-  Widget _infoRow(IconData icon, String label, String value) {
-    if (value.trim().isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: RichText(
-              text: TextSpan(
-                style: const TextStyle(color: Colors.black87),
-                children: [
-                  TextSpan(text: '$label: ', style: const TextStyle(fontWeight: FontWeight.w600)),
-                  TextSpan(text: value),
-                ],
-              ),
-            ),
-          ),
-        ],
+    setState(() => _currentShelf = shelf);
+
+    final msg = shelf == null
+        ? 'Removed from shelves'
+        : 'Moved to ${_shelfLabel(shelf)}';
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        duration: const Duration(seconds: 1),
       ),
     );
   }
 
-  Widget _chipsLight(
-    String title,
-    List<String> items,
-    Color bg,
-    Color fg, {
-    required LabelKind kind,
-  }) {
-    if (items.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 6),
-          child: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        ),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: items.map((t) {
-            return ActionChip(
-              label: Text(t),
-              backgroundColor: bg.withOpacity(0.5),
-              labelStyle: TextStyle(color: fg),
-              onPressed: () {
-                Navigator.of(context).pushNamed(
-                  LabelResultsScreen.route,
-                  arguments: {'label': t, 'kind': kind.name},
-                );
-              },
-            );
-          }).toList(),
-        ),
-      ],
+  String _shelfLabel(Shelf s) {
+    switch (s) {
+      case Shelf.tbr:
+        return 'TBR';
+      case Shelf.read:
+        return 'Read';
+      case Shelf.dnf:
+        return 'DNF';
+    }
+  }
+
+  Future<void> _openShelfPicker() async {
+    final theme = Theme.of(context);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        Widget tile(String label, IconData icon, Shelf shelf) {
+          final selected = _currentShelf == shelf;
+          return ListTile(
+            leading: Icon(
+              icon,
+              color: selected ? theme.colorScheme.primary : null,
+            ),
+            title: Text(label),
+            trailing:
+                selected ? const Icon(Icons.check, color: Colors.green) : null,
+            onTap: () {
+              Navigator.of(ctx).pop();
+              _setShelf(shelf);
+            },
+          );
+        }
+
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              tile('TBR', Icons.bookmark_add_outlined, Shelf.tbr),
+              tile('Read', Icons.check_circle_outline, Shelf.read),
+              tile('DNF', Icons.not_interested_outlined, Shelf.dnf),
+              const Divider(height: 0),
+              ListTile(
+                leading: const Icon(Icons.remove_circle_outline),
+                title: const Text('Remove from shelves'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _setShelf(null);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _updateRating(int stars) async {
+    final b = _book;
+    if (b == null) return;
+    setState(() => _rating = stars);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('$_kRatingPrefix${b.id}', stars);
+  }
+
+  Future<void> _updateSpice(int spice) async {
+    final b = _book;
+    if (b == null) return;
+    setState(() => _spice = spice);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('$_kSpicePrefix${b.id}', spice);
+  }
+
+  Future<void> _saveNotes(String text) async {
+    final b = _book;
+    if (b == null) return;
+    setState(() {
+      _notes = text;
+      _savingNotes = true;
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('$_kNotesPrefix${b.id}', text);
+    setState(() {
+      _savingNotes = false;
+    });
+  }
+
+  void _openLabelResults(String label, LabelKind kind) {
+    Navigator.of(context).pushNamed(
+      LabelResultsScreen.route,
+      arguments: {
+        'label': label,
+        'kind': kind == LabelKind.trope ? 'trope' : 'subgenre',
+      },
+    );
+  }
+
+  void _openRelated(Book book) {
+    Navigator.of(context).pushNamed(
+      BookDetailScreen.route,
+      arguments: {'bookId': book.id},
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
     if (_loading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        appBar: AppBar(title: const Text('Book')),
+        body: Center(
+          child: CircularProgressIndicator(
+            color: theme.colorScheme.primary,
+          ),
+        ),
+      );
     }
+
     if (_book == null) {
-      return const Scaffold(body: Center(child: Text('Book not found')));
+      return Scaffold(
+        appBar: AppBar(title: const Text('Book not found')),
+        body: const Center(
+          child: Text('This book could not be found.'),
+        ),
+      );
     }
-    final b = _book!;
+
+    final book = _book!;
 
     return Scaffold(
-      // No AppBar – we’re using full-bleed pink background in the app
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 48, 16, 24),
+      appBar: AppBar(
+        title: Text(book.title),
+      ),
+      body: _buildBody(context, book),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, Book book) {
+    final theme = Theme.of(context);
+
+    final metaParts = <String>[];
+    if (book.pageCount != null) {
+      metaParts.add('${book.pageCount} pages');
+    }
+    final formattedDate = _formatDate(book.publishedDate);
+    if (formattedDate != null) {
+      metaParts.add(formattedDate);
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header: cover + title/author/meta + shelf button
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              bookCoverWidget(b.coverUrl, w: 120, h: 180),
+              bookCoverWidget(
+                book.coverUrl,
+                w: 110,
+                h: 165,
+                borderRadius: const BorderRadius.all(Radius.circular(12)),
+              ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(b.title, style: theme.textTheme.titleLarge, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    Text(
+                      book.title,
+                      style: theme.textTheme.titleLarge
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 4),
-                    Text(b.author, style: theme.textTheme.titleMedium!.copyWith(color: theme.colorScheme.primary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(
+                      book.author,
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(color: theme.textTheme.bodySmall?.color),
+                    ),
+                    const SizedBox(height: 8),
+                    if (metaParts.isNotEmpty)
+                      Text(
+                        metaParts.join(' • '),
+                        style: theme.textTheme.bodySmall,
+                      ),
                     const SizedBox(height: 12),
-                    _infoRow(Icons.numbers, 'ISBN-13', b.isbn13 ?? ''),
-                    _infoRow(Icons.menu_book_outlined, 'Pages', b.pageCount?.toString() ?? ''),
-                    _infoRow(Icons.event, 'Published', b.publishedDate ?? ''),
+                    FilledButton.icon(
+                      onPressed: _openShelfPicker,
+                      icon: const Icon(Icons.bookmarks_outlined),
+                      label: Text(
+                        _currentShelf == null
+                            ? 'Add to shelf'
+                            : 'Shelf: ${_shelfLabel(_currentShelf!)}',
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -345,42 +372,143 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
           ),
           const SizedBox(height: 16),
 
-          _statusButton(theme),
+          // Rating row gets full width, separate from header.
+          RatingRow(
+            stars: _rating,
+            spice: _spice,
+            onStars: _updateRating,
+            onSpice: _updateSpice,
+          ),
 
           const SizedBox(height: 16),
-          const Divider(),
 
-          Text('Your Rating', style: theme.textTheme.titleMedium),
-          _starRow(),
-          const SizedBox(height: 8),
-          Text('Spice Level', style: theme.textTheme.titleMedium),
-          _spiceRow(),
-
-          const SizedBox(height: 16),
-          const Divider(),
-
-          if ((b.blurb ?? '').trim().isNotEmpty) ...[
-            Text('Blurb', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 6),
-            _ExpandableText(b.blurb!.trim(), trimLines: 6),
+          // Blurb first
+          if ((book.blurb ?? '').trim().isNotEmpty) ...[
+            Text(
+              'Blurb',
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            _ExpandableText(
+              text: book.blurb!.trim(),
+              trimLines: 6,
+            ),
             const SizedBox(height: 16),
           ],
 
-          // Tappable chips -> LabelResultsScreen
-          _chipsLight(
-            'Tropes',
-            b.tropes,
-            theme.colorScheme.secondaryContainer,
-            theme.colorScheme.onSecondaryContainer,
-            kind: LabelKind.trope,
+          // Tropes and subgenres
+          if (book.tropes.isNotEmpty) ...[
+            Text(
+              'Tropes',
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: book.tropes.map((t) {
+                return ActionChip(
+                  label: Text(t),
+                  onPressed: () => _openLabelResults(t, LabelKind.trope),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+          ],
+          if (book.subgenres.isNotEmpty) ...[
+            Text(
+              'Subgenres',
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: book.subgenres.map((s) {
+                return ActionChip(
+                  label: Text(s),
+                  onPressed: () =>
+                      _openLabelResults(s, LabelKind.subgenre),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // More like this (recs)
+          if (_related.isNotEmpty) ...[
+            Text(
+              'More like this',
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 200,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _related.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final b = _related[index];
+                  return SizedBox(
+                    width: 110,
+                    child: InkWell(
+                      onTap: () => _openRelated(b),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: bookCoverWidget(
+                                b.coverUrl,
+                                w: 110,
+                                h: 165,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            b.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          if (b.author.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              b.author,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // Notes at the bottom
+          Text(
+            'Your notes',
+            style: theme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 12),
-          _chipsLight(
-            'Subgenres',
-            b.subgenres,
-            theme.colorScheme.tertiaryContainer,
-            theme.colorScheme.onTertiaryContainer,
-            kind: LabelKind.subgenre,
+          const SizedBox(height: 8),
+          _NotesField(
+            initialText: _notes,
+            onChanged: _saveNotes,
+            saving: _savingNotes,
           ),
         ],
       ),
@@ -388,12 +516,82 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
   }
 }
 
-enum _MenuAction { toTbr, toRead, toDnf, removeAll }
+class _NotesField extends StatefulWidget {
+  final String initialText;
+  final Future<void> Function(String text) onChanged;
+  final bool saving;
+
+  const _NotesField({
+    required this.initialText,
+    required this.onChanged,
+    required this.saving,
+  });
+
+  @override
+  State<_NotesField> createState() => _NotesFieldState();
+}
+
+class _NotesFieldState extends State<_NotesField> {
+  late TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.initialText);
+  }
+
+  @override
+  void didUpdateWidget(covariant _NotesField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialText != widget.initialText &&
+        widget.initialText != _ctrl.text) {
+      _ctrl.text = widget.initialText;
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _ctrl,
+          minLines: 3,
+          maxLines: 5,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            hintText: 'What did you think? Favourite moments, warnings, etc…',
+          ),
+          onChanged: (value) {
+            widget.onChanged(value);
+          },
+        ),
+        const SizedBox(height: 4),
+        if (widget.saving)
+          Text(
+            'Saving…',
+            style: theme.textTheme.bodySmall,
+          ),
+      ],
+    );
+  }
+}
 
 class _ExpandableText extends StatefulWidget {
   final String text;
   final int trimLines;
-  const _ExpandableText(this.text, {this.trimLines = 5});
+
+  const _ExpandableText({
+    required this.text,
+    this.trimLines = 4,
+  });
 
   @override
   State<_ExpandableText> createState() => _ExpandableTextState();
@@ -401,6 +599,7 @@ class _ExpandableText extends StatefulWidget {
 
 class _ExpandableTextState extends State<_ExpandableText> {
   bool _expanded = false;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -410,13 +609,17 @@ class _ExpandableTextState extends State<_ExpandableText> {
         Text(
           widget.text,
           maxLines: _expanded ? null : widget.trimLines,
-          overflow: _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
+          overflow:
+              _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
           textAlign: TextAlign.start,
         ),
         const SizedBox(height: 4),
         TextButton(
           onPressed: () => setState(() => _expanded = !_expanded),
-          child: Text(_expanded ? 'Show less' : 'Read more', style: TextStyle(color: theme.colorScheme.primary)),
+          child: Text(
+            _expanded ? 'Show less' : 'Read more',
+            style: TextStyle(color: theme.colorScheme.primary),
+          ),
         ),
       ],
     );
